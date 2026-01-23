@@ -8,11 +8,6 @@
 #ifndef __Fuchsia__
 #include <sys/resource.h>
 #endif
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
@@ -24,13 +19,18 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #include <thread>
 #include <type_traits>
+#include <unistd.h>
 #include <utility>
 
 #include "leveldb/env.h"
 #include "leveldb/slice.h"
 #include "leveldb/status.h"
+
 #include "port/port.h"
 #include "port/thread_annotations.h"
 #include "util/env_posix_test_helper.h"
@@ -874,7 +874,7 @@ class SingletonEnv {
 #endif  // !defined(NDEBUG)
     static_assert(sizeof(env_storage_) >= sizeof(EnvType),
                   "env_storage_ will not fit the Env");
-    static_assert(std::is_standard_layout_v<SingletonEnv<EnvType>>);
+    static_assert(std::is_standard_layout<SingletonEnv<EnvType>>::value);
     static_assert(
         offsetof(SingletonEnv<EnvType>, env_storage_) % alignof(EnvType) == 0,
         "env_storage_ does not meet the Env's alignment needs");
