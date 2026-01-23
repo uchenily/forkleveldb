@@ -3,11 +3,12 @@
 
 #include "leveldb/db.h"
 
+using namespace leveldb;
+
 int main() {
-    leveldb::DB *db;
-    leveldb::Options options;
-    options.create_if_missing = true;
-    leveldb::Status status = leveldb::DB::Open(options, "./client.db", &db);
+    DB *db;
+    Options options;
+    Status status = DB::Open(options, "./client.db", &db);
 
     if (!status.ok()) {
         std::cerr << "Unable to open/create test database './client.db'" << std::endl;
@@ -25,7 +26,7 @@ int main() {
 
         if (cmd == "set") {
             std::cin >> key >> value;
-            status = db->Put(leveldb::WriteOptions(), key, value);
+            status = db->Put(WriteOptions(), key, value);
             if (status.ok()) {
                 std::cout << "OK" << std::endl;
             } else {
@@ -33,7 +34,7 @@ int main() {
             }
         } else if (cmd == "get") {
             std::cin >> key;
-            status = db->Get(leveldb::ReadOptions(), key, &value);
+            status = db->Get(ReadOptions(), key, &value);
             if (status.ok()) {
                 std::cout << value << std::endl;
             } else {
@@ -41,7 +42,7 @@ int main() {
             }
         } else if (cmd == "del") {
             std::cin >> key;
-            status = db->Delete(leveldb::WriteOptions(), key);
+            status = db->Delete(WriteOptions(), key);
             if (status.ok()) {
                 std::cout << "OK" << std::endl;
             } else {
