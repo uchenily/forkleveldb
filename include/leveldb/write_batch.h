@@ -30,6 +30,7 @@ namespace leveldb {
 
 class Slice;
 
+// 用于保存多个写操作记录
 class LEVELDB_EXPORT WriteBatch {
  public:
   class LEVELDB_EXPORT Handler {
@@ -75,7 +76,17 @@ class LEVELDB_EXPORT WriteBatch {
  private:
   friend class WriteBatchInternal;
 
-  std::string rep_;  // See comment in write_batch.cc for the format of rep_
+  // rep_ :=
+  //    sequence: fixed64
+  //    count: fixed32
+  //    data: record[count]
+  // record :=
+  //    kTypeValue varstring varstring         |
+  //    kTypeDeletion varstring
+  // varstring :=
+  //    len: varint32
+  //    data: uint8[len]
+  std::string rep_;
 };
 
 }  // namespace leveldb

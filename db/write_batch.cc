@@ -2,17 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 //
-// WriteBatch::rep_ :=
-//    sequence: fixed64
-//    count: fixed32
-//    data: record[count]
-// record :=
-//    kTypeValue varstring varstring         |
-//    kTypeDeletion varstring
-// varstring :=
-//    len: varint32
-//    data: uint8[len]
-
 #include "leveldb/write_batch.h"
 
 #include "db/dbformat.h"
@@ -79,11 +68,18 @@ Status WriteBatch::Iterate(Handler* handler) const {
   }
 }
 
+// 注意这里的技巧: 将重活交给 WriteBatchInternal 去做
+// WriteBatch 只专注于核心的 Put, Delete, Append等的高层逻辑, 具体的累活/底层的实现交给WriteBatchInternal
+// 如果一切都直接放到WriteBatch中, 会显得很杂乱
 int WriteBatchInternal::Count(const WriteBatch* b) {
   return DecodeFixed32(b->rep_.data() + 8);
 }
 
 void WriteBatchInternal::SetCount(WriteBatch* b, int n) {
+  // rep_ :=
+  //    sequence: fixed64
+  //    count: fixed32        <-- pos=req_[8]
+  //    data: record[count]
   EncodeFixed32(&b->rep_[8], n);
 }
 
@@ -92,11 +88,19 @@ SequenceNumber WriteBatchInternal::Sequence(const WriteBatch* b) {
 }
 
 void WriteBatchInternal::SetSequence(WriteBatch* b, SequenceNumber seq) {
+  // rep_ :=
+  //    sequence: fixed64     <-- pos=req_[0]
+  //    count: fixed32
+  //    data: record[count]
   EncodeFixed64(&b->rep_[0], seq);
 }
 
 void WriteBatch::Put(const Slice& key, const Slice& value) {
   WriteBatchInternal::SetCount(this, WriteBatchInternal::Count(this) + 1);
+  // record := kTypeValue varstring varstring
+  // varstring :=
+  //    len: varint32
+  //    data: uint8[len]
   rep_.push_back(static_cast<char>(kTypeValue));
   PutLengthPrefixedSlice(&rep_, key);
   PutLengthPrefixedSlice(&rep_, value);
@@ -104,6 +108,10 @@ void WriteBatch::Put(const Slice& key, const Slice& value) {
 
 void WriteBatch::Delete(const Slice& key) {
   WriteBatchInternal::SetCount(this, WriteBatchInternal::Count(this) + 1);
+  // record := kTypeDeletion varstring
+  // varstring :=
+  //    len: varint32
+  //    data: uint8[len]
   rep_.push_back(static_cast<char>(kTypeDeletion));
   PutLengthPrefixedSlice(&rep_, key);
 }
