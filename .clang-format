@@ -1,18 +1,27 @@
-# Run manually to reformat a file:
-# clang-format -i --style=file <file>
-# find . -iname '*.cc' -o -iname '*.h' -o -iname '*.h.in' | xargs clang-format -i --style=file
-BasedOnStyle: Google
-DerivePointerAlignment: false
+---
+BasedOnStyle: LLVM
+Language: Cpp
 
-# Public headers are in a different location in the internal Google repository.
-# Order them so that when imported to the authoritative repository they will be
-# in correct alphabetical order.
-IncludeCategories:
-  - Regex:           '^(<|"(benchmarks|db|helpers)/)'
-    Priority:        1
-  - Regex:           '^"(leveldb)/'
-    Priority:        2
-  - Regex:           '^(<|"(issues|port|table|third_party|util)/)'
-    Priority:        3
-  - Regex:           '.*'
-    Priority:        4
+# See all possible options and defaults with:
+# clang-format --style=llvm --dump-config
+AccessModifierOffset: -4
+AlignArrayOfStructures: Left
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: Empty
+BinPackArguments: false
+BinPackParameters: false
+BreakAfterAttributes: Always
+BreakBeforeBinaryOperators: true
+BreakConstructorInitializers: BeforeComma
+# BreakTemplateDeclarations: Yes # renamed
+AlwaysBreakTemplateDeclarations: Yes
+ColumnLimit: 120
+IndentPPDirectives: BeforeHash
+IndentWidth: 4
+NamespaceIndentation: Inner
+SpaceAfterCStyleCast: true
+TabWidth: 4

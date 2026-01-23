@@ -192,7 +192,6 @@ target_sources(leveldb
 
   # Only CMake 3.3+ supports PUBLIC sources in targets exported by "install".
   $<$<VERSION_GREATER:CMAKE_VERSION,3.2>:PUBLIC>
-    "${LEVELDB_PUBLIC_INCLUDE_DIR}/c.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/cache.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/comparator.h"
     "${LEVELDB_PUBLIC_INCLUDE_DIR}/db.h"
@@ -468,7 +467,6 @@ if(LEVELDB_INSTALL)
   )
   install(
     FILES
-      "${LEVELDB_PUBLIC_INCLUDE_DIR}/c.h"
       "${LEVELDB_PUBLIC_INCLUDE_DIR}/cache.h"
       "${LEVELDB_PUBLIC_INCLUDE_DIR}/comparator.h"
       "${LEVELDB_PUBLIC_INCLUDE_DIR}/db.h"
