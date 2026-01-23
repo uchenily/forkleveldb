@@ -40,17 +40,18 @@ const int kNumNonTableCacheFiles = 10;
 
 // Information kept for every waiting writer
 struct DBImpl::Writer {
-    explicit Writer(std::mutex *mu)
-        : batch(nullptr)
+    Writer()
+        : status()
+        , batch(nullptr)
         , sync(false)
         , done(false)
-        , cv(mu) {}
+        , cv() {}
 
     Status status;
     WriteBatch *batch;
     bool sync;
     bool done;
-    port::CondVar cv;
+    std::condition_variable cv;
 };
 
 struct DBImpl::CompactionState {
@@ -140,7 +141,7 @@ DBImpl::DBImpl(const Options &raw_options, const std::string &dbname)
     , table_cache_(new TableCache(dbname_, options_, TableCacheSize(options_)))
     , db_lock_(nullptr)
     , shutting_down_(false)
-    , background_work_finished_signal_(&mutex_)
+    , background_work_finished_signal_()
     , mem_(nullptr)
     , imm_(nullptr)
     , has_imm_(false)
@@ -157,10 +158,11 @@ DBImpl::~DBImpl() {
     // Wait for background work to finish.
     mutex_.lock();
     shutting_down_.store(true, std::memory_order_release);
-    while (background_compaction_scheduled_) {
-        background_work_finished_signal_.Wait();
-    }
-    mutex_.unlock();
+    std::unique_lock<std::mutex> lock(mutex_, std::adopt_lock);
+    background_work_finished_signal_.wait(lock, [&] {
+        return !background_compaction_scheduled_;
+    });
+    lock.release();
 
     if (db_lock_ != nullptr) {
         env_->UnlockFile(db_lock_);
@@ -615,20 +617,20 @@ void DBImpl::TEST_CompactRange(int level, const Slice *begin, const Slice *end) 
         manual.end = &end_storage;
     }
 
-    std::lock_guard<std::mutex> l(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     while (!manual.done && !shutting_down_.load(std::memory_order_acquire) && bg_error_.ok()) {
         if (manual_compaction_ == nullptr) { // Idle
             manual_compaction_ = &manual;
             MaybeScheduleCompaction();
         } else { // Running either my compaction or another compaction.
-            background_work_finished_signal_.Wait();
+            background_work_finished_signal_.wait(lock);
         }
     }
     // Finish current background compaction in the case where
     // `background_work_finished_signal_` was signalled due to an error.
-    while (background_compaction_scheduled_) {
-        background_work_finished_signal_.Wait();
-    }
+    background_work_finished_signal_.wait(lock, [&] {
+        return !background_compaction_scheduled_;
+    });
     if (manual_compaction_ == &manual) {
         // Cancel my manual compaction since we aborted early for some reason.
         manual_compaction_ = nullptr;
@@ -640,10 +642,10 @@ Status DBImpl::TEST_CompactMemTable() {
     Status s = Write(WriteOptions(), nullptr);
     if (s.ok()) {
         // Wait until the compaction completes
-        std::lock_guard<std::mutex> l(mutex_);
-        while (imm_ != nullptr && bg_error_.ok()) {
-            background_work_finished_signal_.Wait();
-        }
+        std::unique_lock<std::mutex> lock(mutex_);
+        background_work_finished_signal_.wait(lock, [&] {
+            return imm_ == nullptr || !bg_error_.ok();
+        });
         if (imm_ != nullptr) {
             s = bg_error_;
         }
@@ -654,7 +656,7 @@ Status DBImpl::TEST_CompactMemTable() {
 void DBImpl::RecordBackgroundError(const Status &s) {
     if (bg_error_.ok()) {
         bg_error_ = s;
-        background_work_finished_signal_.SignalAll();
+        background_work_finished_signal_.notify_all();
     }
 }
 
@@ -693,7 +695,7 @@ void DBImpl::BackgroundCall() {
     // Previous compaction may have produced too many files in a level,
     // so reschedule another compaction if needed.
     MaybeScheduleCompaction();
-    background_work_finished_signal_.SignalAll();
+    background_work_finished_signal_.notify_all();
 }
 
 void DBImpl::BackgroundCompaction() {
@@ -927,7 +929,7 @@ Status DBImpl::DoCompactionWork(CompactionState *compact) {
             if (imm_ != nullptr) {
                 CompactMemTable();
                 // Wake up MakeRoomForWrite() if necessary.
-                background_work_finished_signal_.SignalAll();
+                background_work_finished_signal_.notify_all();
             }
             mutex_.unlock();
             imm_micros += (env_->NowMicros() - imm_start);
@@ -1196,16 +1198,16 @@ Status DBImpl::Delete(const WriteOptions &options, const Slice &key) {
 }
 
 Status DBImpl::Write(const WriteOptions &options, WriteBatch *updates) {
-    Writer w(&mutex_);
+    Writer w;
     w.batch = updates;
     w.sync = options.sync;
     w.done = false;
 
-    std::lock_guard<std::mutex> l(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     writers_.push_back(&w);
-    while (!w.done && &w != writers_.front()) {
-        w.cv.Wait();
-    }
+    w.cv.wait(lock, [&] {
+        return w.done || &w == writers_.front();
+    });
     if (w.done) {
         return w.status;
     }
@@ -1256,7 +1258,7 @@ Status DBImpl::Write(const WriteOptions &options, WriteBatch *updates) {
         if (ready != &w) {
             ready->status = status;
             ready->done = true;
-            ready->cv.Signal();
+            ready->cv.notify_one();
         }
         if (ready == last_writer)
             break;
@@ -1264,7 +1266,7 @@ Status DBImpl::Write(const WriteOptions &options, WriteBatch *updates) {
 
     // Notify new head of write queue
     if (!writers_.empty()) {
-        writers_.front()->cv.Signal();
+        writers_.front()->cv.notify_one();
     }
 
     return status;
@@ -1348,11 +1350,19 @@ Status DBImpl::MakeRoomForWrite(bool force) {
             // We have filled up the current memtable, but the previous
             // one is still being compacted, so we wait.
             Log(options_.info_log, "Current memtable full; waiting...\n");
-            background_work_finished_signal_.Wait();
+            std::unique_lock<std::mutex> lock(mutex_, std::adopt_lock);
+            background_work_finished_signal_.wait(lock, [&] {
+                return imm_ == nullptr;
+            });
+            lock.release();
         } else if (versions_->NumLevelFiles(0) >= config::kL0_StopWritesTrigger) {
             // There are too many level-0 files.
             Log(options_.info_log, "Too many L0 files; waiting...\n");
-            background_work_finished_signal_.Wait();
+            std::unique_lock<std::mutex> lock(mutex_, std::adopt_lock);
+            background_work_finished_signal_.wait(lock, [&] {
+                return versions_->NumLevelFiles(0) < config::kL0_StopWritesTrigger;
+            });
+            lock.release();
         } else {
             // Attempt to switch to a new memtable and trigger compaction of old
             assert(versions_->PrevLogNumber() == 0);

@@ -72,7 +72,7 @@ TEST_F(EnvTest, ReadWrite) {
 TEST_F(EnvTest, RunImmediately) {
     struct RunState {
         std::mutex mu;
-        port::CondVar cvar{&mu};
+        std::condition_variable cvar;
         bool called = false;
 
         static void Run(void *arg) {
@@ -80,23 +80,23 @@ TEST_F(EnvTest, RunImmediately) {
             std::lock_guard<std::mutex> l(state->mu);
             ASSERT_EQ(state->called, false);
             state->called = true;
-            state->cvar.Signal();
+            state->cvar.notify_one();
         }
     };
 
     RunState state;
     env_->Schedule(&RunState::Run, &state);
 
-    std::lock_guard<std::mutex> l(state.mu);
-    while (!state.called) {
-        state.cvar.Wait();
-    }
+    std::unique_lock<std::mutex> lock(state.mu);
+    state.cvar.wait(lock, [&] {
+        return state.called;
+    });
 }
 
 TEST_F(EnvTest, RunMany) {
     struct RunState {
         std::mutex mu;
-        port::CondVar cvar{&mu};
+        std::condition_variable cvar;
         int run_count = 0;
     };
 
@@ -114,7 +114,7 @@ TEST_F(EnvTest, RunMany) {
             std::lock_guard<std::mutex> l(state->mu);
             state->run_count++;
             callback->run = true;
-            state->cvar.Signal();
+            state->cvar.notify_one();
         }
     };
 
@@ -128,10 +128,10 @@ TEST_F(EnvTest, RunMany) {
     env_->Schedule(&Callback::Run, &callback3);
     env_->Schedule(&Callback::Run, &callback4);
 
-    std::lock_guard<std::mutex> l(state.mu);
-    while (state.run_count != 4) {
-        state.cvar.Wait();
-    }
+    std::unique_lock<std::mutex> lock(state.mu);
+    state.cvar.wait(lock, [&] {
+        return state.run_count == 4;
+    });
 
     ASSERT_TRUE(callback1.run);
     ASSERT_TRUE(callback2.run);
@@ -141,7 +141,7 @@ TEST_F(EnvTest, RunMany) {
 
 struct State {
     std::mutex mu;
-    port::CondVar cvar{&mu};
+    std::condition_variable cvar;
 
     int val GUARDED_BY(mu);
     int num_running GUARDED_BY(mu);
@@ -156,7 +156,7 @@ static void ThreadBody(void *arg) {
     s->mu.lock();
     s->val += 1;
     s->num_running -= 1;
-    s->cvar.Signal();
+    s->cvar.notify_one();
     s->mu.unlock();
 }
 
@@ -166,10 +166,10 @@ TEST_F(EnvTest, StartThread) {
         env_->StartThread(&ThreadBody, &state);
     }
 
-    std::lock_guard<std::mutex> l(state.mu);
-    while (state.num_running != 0) {
-        state.cvar.Wait();
-    }
+    std::unique_lock<std::mutex> lock(state.mu);
+    state.cvar.wait(lock, [&] {
+        return state.num_running == 0;
+    });
     ASSERT_EQ(state.val, 3);
 }
 

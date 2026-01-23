@@ -363,7 +363,7 @@ namespace {
     // State shared by all concurrent executions of the same benchmark.
     struct SharedState {
         std::mutex mu;
-        port::CondVar cv GUARDED_BY(mu);
+        std::condition_variable cv GUARDED_BY(mu);
         int total GUARDED_BY(mu);
 
         // Each thread goes through the following states:
@@ -377,8 +377,7 @@ namespace {
         bool start GUARDED_BY(mu);
 
         SharedState(int total)
-            : cv(&mu)
-            , total(total)
+            : total(total)
             , num_initialized(0)
             , num_done(0)
             , start(false) {}
@@ -699,14 +698,14 @@ private:
         SharedState *shared = arg->shared;
         ThreadState *thread = arg->thread;
         {
-            std::lock_guard<std::mutex> l(shared->mu);
+            std::unique_lock<std::mutex> lock(shared->mu);
             shared->num_initialized++;
             if (shared->num_initialized >= shared->total) {
-                shared->cv.SignalAll();
+                shared->cv.notify_all();
             }
-            while (!shared->start) {
-                shared->cv.Wait();
-            }
+            shared->cv.wait(lock, [&] {
+                return shared->start;
+            });
         }
 
         thread->stats.Start();
@@ -714,10 +713,10 @@ private:
         thread->stats.Stop();
 
         {
-            std::lock_guard<std::mutex> l(shared->mu);
+            std::unique_lock<std::mutex> lock(shared->mu);
             shared->num_done++;
             if (shared->num_done >= shared->total) {
-                shared->cv.SignalAll();
+                shared->cv.notify_all();
             }
         }
     }
@@ -739,17 +738,16 @@ private:
             g_env->StartThread(ThreadBody, &arg[i]);
         }
 
-        shared.mu.lock();
-        while (shared.num_initialized < n) {
-            shared.cv.Wait();
-        }
+        std::unique_lock<std::mutex> lock(shared.mu);
+        shared.cv.wait(lock, [&] {
+            return shared.num_initialized >= n;
+        });
 
         shared.start = true;
-        shared.cv.SignalAll();
-        while (shared.num_done < n) {
-            shared.cv.Wait();
-        }
-        shared.mu.unlock();
+        shared.cv.notify_all();
+        shared.cv.wait(lock, [&] {
+            return shared.num_done >= n;
+        });
 
         for (int i = 1; i < n; i++) {
             arg[0].thread->stats.Merge(arg[i].thread->stats);
