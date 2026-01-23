@@ -5,8 +5,7 @@ Language: Cpp
 # See all possible options and defaults with:
 # clang-format --style=llvm --dump-config
 AccessModifierOffset: -4
-AlignArrayOfStructures: Left
-AlignConsecutiveDeclarations: true
+AlignArrayOfStructures: Right
 AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false

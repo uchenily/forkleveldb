@@ -7,3 +7,5 @@
 build/
 out/
 .cache
+a.out
+client.db
