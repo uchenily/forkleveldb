@@ -61,7 +61,7 @@ namespace {
 
     private:
         std::mutex mu_;
-        int count_ GUARDED_BY(mu_);
+        int count_;
     };
 
     void DelayMilliseconds(int millis) {

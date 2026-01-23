@@ -363,8 +363,8 @@ namespace {
     // State shared by all concurrent executions of the same benchmark.
     struct SharedState {
         std::mutex mu;
-        std::condition_variable cv GUARDED_BY(mu);
-        int total GUARDED_BY(mu);
+        std::condition_variable cv;
+        int total;
 
         // Each thread goes through the following states:
         //    (1) initializing
@@ -372,9 +372,9 @@ namespace {
         //    (3) running
         //    (4) done
 
-        int num_initialized GUARDED_BY(mu);
-        int num_done GUARDED_BY(mu);
-        bool start GUARDED_BY(mu);
+        int num_initialized;
+        int num_done;
+        bool start;
 
         SharedState(int total)
             : total(total)

@@ -6,3 +6,6 @@ setup:
 
 test:
     ./build/leveldb_tests --gtest_filter="*.*"
+
+client:
+    ./client.sh && ./a.out

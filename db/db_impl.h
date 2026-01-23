@@ -167,36 +167,36 @@ private:
     // State below is protected by mutex_
     std::mutex mutex_;
     std::atomic<bool> shutting_down_;
-    std::condition_variable background_work_finished_signal_ GUARDED_BY(mutex_);
+    std::condition_variable background_work_finished_signal_;
     MemTable *mem_;
-    MemTable *imm_ GUARDED_BY(mutex_); // Memtable being compacted
+    MemTable *imm_; // Memtable being compacted
     std::atomic<bool> has_imm_;        // So bg thread can detect non-null imm_
     WritableFile *logfile_;
-    uint64_t logfile_number_ GUARDED_BY(mutex_);
+    uint64_t logfile_number_;
     log::Writer *log_;
-    uint32_t seed_ GUARDED_BY(mutex_); // For sampling.
+    uint32_t seed_; // For sampling.
 
     // Queue of writers.
-    std::deque<Writer *> writers_ GUARDED_BY(mutex_);
-    WriteBatch *tmp_batch_ GUARDED_BY(mutex_);
+    std::deque<Writer *> writers_;
+    WriteBatch *tmp_batch_;
 
-    SnapshotList snapshots_ GUARDED_BY(mutex_);
+    SnapshotList snapshots_;
 
     // Set of table files to protect from deletion because they are
     // part of ongoing compactions.
-    std::set<uint64_t> pending_outputs_ GUARDED_BY(mutex_);
+    std::set<uint64_t> pending_outputs_;
 
     // Has a background compaction been scheduled or is running?
-    bool background_compaction_scheduled_ GUARDED_BY(mutex_);
+    bool background_compaction_scheduled_;
 
-    ManualCompaction *manual_compaction_ GUARDED_BY(mutex_);
+    ManualCompaction *manual_compaction_;
 
-    VersionSet *const versions_ GUARDED_BY(mutex_);
+    VersionSet *const versions_;
 
     // Have we encountered a background error in paranoid mode?
-    Status bg_error_ GUARDED_BY(mutex_);
+    Status bg_error_;
 
-    CompactionStats stats_[config::kNumLevels] GUARDED_BY(mutex_);
+    CompactionStats stats_[config::kNumLevels];
 };
 
 // Sanitize db options.  The caller should delete result.info_log if

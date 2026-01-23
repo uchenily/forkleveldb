@@ -191,18 +191,18 @@ namespace {
 
         // mutex_ protects the following state.
         mutable std::mutex mutex_;
-        size_t usage_ GUARDED_BY(mutex_);
+        size_t usage_;
 
         // Dummy head of LRU list.
         // lru.prev is newest entry, lru.next is oldest entry.
         // Entries have refs==1 and in_cache==true.
-        LRUHandle lru_ GUARDED_BY(mutex_);
+        LRUHandle lru_;
 
         // Dummy head of in-use list.
         // Entries are in use by clients, and have refs >= 2 and in_cache==true.
-        LRUHandle in_use_ GUARDED_BY(mutex_);
+        LRUHandle in_use_;
 
-        HandleTable table_ GUARDED_BY(mutex_);
+        HandleTable table_;
     };
 
     LRUCache::LRUCache()

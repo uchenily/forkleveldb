@@ -145,11 +145,11 @@ namespace {
         }
 
         std::mutex refs_mutex_;
-        int refs_ GUARDED_BY(refs_mutex_);
+        int refs_;
 
         mutable std::mutex blocks_mutex_;
-        std::vector<char *> blocks_ GUARDED_BY(blocks_mutex_);
-        uint64_t size_ GUARDED_BY(blocks_mutex_);
+        std::vector<char *> blocks_;
+        uint64_t size_;
     };
 
     class SequentialFileImpl : public SequentialFile {
@@ -402,7 +402,7 @@ namespace {
         typedef std::map<std::string, FileState *> FileSystem;
 
         std::mutex mutex_;
-        FileSystem file_map_ GUARDED_BY(mutex_);
+        FileSystem file_map_;
     };
 
 } // namespace

@@ -332,8 +332,8 @@ public:
 
 private:
     std::mutex mu_;
-    ReaderState state_ GUARDED_BY(mu_);
-    std::condition_variable state_cv_ GUARDED_BY(mu_);
+    ReaderState state_;
+    std::condition_variable state_cv_;
 };
 
 static void ConcurrentReader(void *arg) {

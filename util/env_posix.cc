@@ -517,7 +517,7 @@ namespace {
 
     private:
         std::mutex mu_;
-        std::set<std::string> locked_files_ GUARDED_BY(mu_);
+        std::set<std::string> locked_files_;
     };
 
     class PosixEnv : public Env {
@@ -760,10 +760,10 @@ namespace {
         };
 
         std::mutex background_work_mutex_;
-        std::condition_variable background_work_cv_ GUARDED_BY(background_work_mutex_);
-        bool started_background_thread_ GUARDED_BY(background_work_mutex_);
+        std::condition_variable background_work_cv_;
+        bool started_background_thread_;
 
-        std::queue<BackgroundWorkItem> background_work_queue_ GUARDED_BY(background_work_mutex_);
+        std::queue<BackgroundWorkItem> background_work_queue_;
 
         PosixLockTable locks_; // Thread-safe.
         Limiter mmap_limiter_; // Thread-safe.

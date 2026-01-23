@@ -143,8 +143,8 @@ struct State {
     std::mutex mu;
     std::condition_variable cvar;
 
-    int val GUARDED_BY(mu);
-    int num_running GUARDED_BY(mu);
+    int val;
+    int num_running;
 
     State(int val, int num_running)
         : val(val)

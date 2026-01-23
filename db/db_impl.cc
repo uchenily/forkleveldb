@@ -1052,9 +1052,9 @@ namespace {
 
     struct IterState {
         std::mutex *const mu;
-        Version *const version GUARDED_BY(mu);
-        MemTable *const mem GUARDED_BY(mu);
-        MemTable *const imm GUARDED_BY(mu);
+        Version *const version;
+        MemTable *const mem;
+        MemTable *const imm;
 
         IterState(std::mutex *mutex, MemTable *mem, MemTable *imm, Version *version)
             : mu(mutex)
