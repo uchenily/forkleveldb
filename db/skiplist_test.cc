@@ -307,22 +307,22 @@ class TestState {
       : seed_(s), quit_flag_(false), state_(STARTING), state_cv_(&mu_) {}
 
   void Wait(ReaderState s) LOCKS_EXCLUDED(mu_) {
-    mu_.Lock();
+    mu_.lock();
     while (state_ != s) {
       state_cv_.Wait();
     }
-    mu_.Unlock();
+    mu_.unlock();
   }
 
   void Change(ReaderState s) LOCKS_EXCLUDED(mu_) {
-    mu_.Lock();
+    mu_.lock();
     state_ = s;
     state_cv_.Signal();
-    mu_.Unlock();
+    mu_.unlock();
   }
 
  private:
-  port::Mutex mu_;
+  std::mutex mu_;
   ReaderState state_ GUARDED_BY(mu_);
   port::CondVar state_cv_ GUARDED_BY(mu_);
 };

@@ -141,10 +141,10 @@ class FileState {
   // Private since only Unref() should be used to delete it.
   ~FileState() { Truncate(); }
 
-  port::Mutex refs_mutex_;
+  std::mutex refs_mutex_;
   int refs_ GUARDED_BY(refs_mutex_);
 
-  mutable port::Mutex blocks_mutex_;
+  mutable std::mutex blocks_mutex_;
   std::vector<char*> blocks_ GUARDED_BY(blocks_mutex_);
   uint64_t size_ GUARDED_BY(blocks_mutex_);
 };
@@ -379,7 +379,7 @@ class InMemoryEnv : public EnvWrapper {
   // Map from filenames to FileState objects, representing a simple file system.
   typedef std::map<std::string, FileState*> FileSystem;
 
-  port::Mutex mutex_;
+  std::mutex mutex_;
   FileSystem file_map_ GUARDED_BY(mutex_);
 };
 

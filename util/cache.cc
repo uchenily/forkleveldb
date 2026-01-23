@@ -180,7 +180,7 @@ class LRUCache {
   size_t capacity_;
 
   // mutex_ protects the following state.
-  mutable port::Mutex mutex_;
+  mutable std::mutex mutex_;
   size_t usage_ GUARDED_BY(mutex_);
 
   // Dummy head of LRU list.
@@ -339,7 +339,7 @@ static const int kNumShards = 1 << kNumShardBits;
 class ShardedLRUCache : public Cache {
  private:
   LRUCache shard_[kNumShards];
-  port::Mutex id_mutex_;
+  std::mutex id_mutex_;
   uint64_t last_id_;
 
   static inline uint32_t HashSlice(const Slice& s) {

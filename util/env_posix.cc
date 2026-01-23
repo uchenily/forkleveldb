@@ -499,19 +499,19 @@ class PosixFileLock : public FileLock {
 class PosixLockTable {
  public:
   bool Insert(const std::string& fname) LOCKS_EXCLUDED(mu_) {
-    mu_.Lock();
+    mu_.lock();
     bool succeeded = locked_files_.insert(fname).second;
-    mu_.Unlock();
+    mu_.unlock();
     return succeeded;
   }
   void Remove(const std::string& fname) LOCKS_EXCLUDED(mu_) {
-    mu_.Lock();
+    mu_.lock();
     locked_files_.erase(fname);
-    mu_.Unlock();
+    mu_.unlock();
   }
 
  private:
-  port::Mutex mu_;
+  std::mutex mu_;
   std::set<std::string> locked_files_ GUARDED_BY(mu_);
 };
 
@@ -765,7 +765,7 @@ class PosixEnv : public Env {
     void* const arg;
   };
 
-  port::Mutex background_work_mutex_;
+  std::mutex background_work_mutex_;
   port::CondVar background_work_cv_ GUARDED_BY(background_work_mutex_);
   bool started_background_thread_ GUARDED_BY(background_work_mutex_);
 
@@ -814,7 +814,7 @@ PosixEnv::PosixEnv()
 void PosixEnv::Schedule(
     void (*background_work_function)(void* background_work_arg),
     void* background_work_arg) {
-  background_work_mutex_.Lock();
+  background_work_mutex_.lock();
 
   // Start the background thread, if we haven't done so already.
   if (!started_background_thread_) {
@@ -829,12 +829,12 @@ void PosixEnv::Schedule(
   }
 
   background_work_queue_.emplace(background_work_function, background_work_arg);
-  background_work_mutex_.Unlock();
+  background_work_mutex_.unlock();
 }
 
 void PosixEnv::BackgroundThreadMain() {
   while (true) {
-    background_work_mutex_.Lock();
+    background_work_mutex_.lock();
 
     // Wait until there is work to be done.
     while (background_work_queue_.empty()) {
@@ -846,7 +846,7 @@ void PosixEnv::BackgroundThreadMain() {
     void* background_work_arg = background_work_queue_.front().arg;
     background_work_queue_.pop();
 
-    background_work_mutex_.Unlock();
+    background_work_mutex_.unlock();
     background_work_function(background_work_arg);
   }
 }

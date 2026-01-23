@@ -70,7 +70,7 @@ TEST_F(EnvTest, ReadWrite) {
 
 TEST_F(EnvTest, RunImmediately) {
   struct RunState {
-    port::Mutex mu;
+    std::mutex mu;
     port::CondVar cvar{&mu};
     bool called = false;
 
@@ -94,7 +94,7 @@ TEST_F(EnvTest, RunImmediately) {
 
 TEST_F(EnvTest, RunMany) {
   struct RunState {
-    port::Mutex mu;
+    std::mutex mu;
     port::CondVar cvar{&mu};
     int run_count = 0;
   };
@@ -138,7 +138,7 @@ TEST_F(EnvTest, RunMany) {
 }
 
 struct State {
-  port::Mutex mu;
+  std::mutex mu;
   port::CondVar cvar{&mu};
 
   int val GUARDED_BY(mu);
@@ -149,11 +149,11 @@ struct State {
 
 static void ThreadBody(void* arg) {
   State* s = reinterpret_cast<State*>(arg);
-  s->mu.Lock();
+  s->mu.lock();
   s->val += 1;
   s->num_running -= 1;
   s->cvar.Signal();
-  s->mu.Unlock();
+  s->mu.unlock();
 }
 
 TEST_F(EnvTest, StartThread) {

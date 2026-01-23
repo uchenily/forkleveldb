@@ -774,7 +774,7 @@ void VersionSet::AppendVersion(Version* v) {
   v->next_->prev_ = v;
 }
 
-Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
+Status VersionSet::LogAndApply(VersionEdit* edit, std::mutex* mu) {
   if (edit->has_log_number_) {
     assert(edit->log_number_ >= log_number_);
     assert(edit->log_number_ < next_file_number_);
@@ -815,7 +815,7 @@ Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
 
   // Unlock during expensive MANIFEST log write
   {
-    mu->Unlock();
+    mu->unlock();
 
     // Write new record to MANIFEST log
     if (s.ok()) {
@@ -836,7 +836,7 @@ Status VersionSet::LogAndApply(VersionEdit* edit, port::Mutex* mu) {
       s = SetCurrentFile(env_, dbname_, manifest_file_number_);
     }
 
-    mu->Lock();
+    mu->lock();
   }
 
   // Install the new version

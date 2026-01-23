@@ -171,7 +171,7 @@ class DBImpl : public DB {
   FileLock* db_lock_;
 
   // State below is protected by mutex_
-  port::Mutex mutex_;
+  std::mutex mutex_;
   std::atomic<bool> shutting_down_;
   port::CondVar background_work_finished_signal_ GUARDED_BY(mutex_);
   MemTable* mem_;

@@ -157,7 +157,7 @@ class FaultInjectionTestEnv : public EnvWrapper {
   }
 
  private:
-  port::Mutex mutex_;
+  std::mutex mutex_;
   std::map<std::string, FileState> db_file_state_ GUARDED_BY(mutex_);
   std::set<std::string> new_files_since_last_dir_sync_ GUARDED_BY(mutex_);
   bool filesystem_active_ GUARDED_BY(mutex_);  // Record flushes, syncs, writes
@@ -337,10 +337,10 @@ void FaultInjectionTestEnv::ResetState() {
 
 Status FaultInjectionTestEnv::RemoveFilesCreatedAfterLastDirSync() {
   // Because RemoveFile access this container make a copy to avoid deadlock
-  mutex_.Lock();
+  mutex_.lock();
   std::set<std::string> new_files(new_files_since_last_dir_sync_.begin(),
                                   new_files_since_last_dir_sync_.end());
-  mutex_.Unlock();
+  mutex_.unlock();
   Status status;
   for (const auto& new_file : new_files) {
     Status remove_status = RemoveFile(new_file);

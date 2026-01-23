@@ -45,7 +45,7 @@ void BM_LogAndApply(benchmark::State& state) {
 
   Env* env = Env::Default();
 
-  port::Mutex mu;
+  std::mutex mu;
   MutexLock l(&mu);
 
   InternalKeyComparator cmp(BytewiseComparator());

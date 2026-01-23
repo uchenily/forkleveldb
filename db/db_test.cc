@@ -58,7 +58,7 @@ class AtomicCounter {
   }
 
  private:
-  port::Mutex mu_;
+  std::mutex mu_;
   int count_ GUARDED_BY(mu_);
 };
 

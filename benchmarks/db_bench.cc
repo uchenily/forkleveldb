@@ -344,7 +344,7 @@ class Stats {
 
 // State shared by all concurrent executions of the same benchmark.
 struct SharedState {
-  port::Mutex mu;
+  std::mutex mu;
   port::CondVar cv GUARDED_BY(mu);
   int total GUARDED_BY(mu);
 
@@ -725,7 +725,7 @@ class Benchmark {
       g_env->StartThread(ThreadBody, &arg[i]);
     }
 
-    shared.mu.Lock();
+    shared.mu.lock();
     while (shared.num_initialized < n) {
       shared.cv.Wait();
     }
@@ -735,7 +735,7 @@ class Benchmark {
     while (shared.num_done < n) {
       shared.cv.Wait();
     }
-    shared.mu.Unlock();
+    shared.mu.unlock();
 
     for (int i = 1; i < n; i++) {
       arg[0].thread->stats.Merge(arg[i].thread->stats);
