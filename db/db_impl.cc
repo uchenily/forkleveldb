@@ -1208,6 +1208,10 @@ Status DBImpl::Write(const WriteOptions &options, WriteBatch *updates) {
     w.cv.wait(lock, [&] {
         return w.done || &w == writers_.front();
     });
+
+    // 为什么这里可能已经done=true?
+    // 因为leveldb支持多线程并行处理的, 最外层可能有多个线程同时在执行 db->Put(k, v)
+    // 可能执行到这里时, 当前的写请求已经被合并而且执行完成了!
     if (w.done) {
         return w.status;
     }
@@ -1272,6 +1276,11 @@ Status DBImpl::Write(const WriteOptions &options, WriteBatch *updates) {
     return status;
 }
 
+// 合并队列中的多个写请求
+// 从队首（当前 Writer）开始遍历
+// 将多个小的 WriteBatch 合并成一个大的 WriteBatch
+// 更新 last_writer 指针到最后一个被合并的 Writer
+// 减少 I/O 次数，提高吞吐量
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
 WriteBatch *DBImpl::BuildBatchGroup(Writer **last_writer) {
