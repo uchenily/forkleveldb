@@ -123,7 +123,6 @@ target_sources(leveldb
     "${PROJECT_BINARY_DIR}/${LEVELDB_PORT_CONFIG_DIR}/port_config.h"
     "db/builder.cc"
     "db/builder.h"
-    "db/c.cc"
     "db/db_impl.cc"
     "db/db_impl.h"
     "db/db_iter.cc"
@@ -390,8 +389,6 @@ if(LEVELDB_BUILD_TESTS)
 
     add_test(NAME "${test_target_name}" COMMAND "${test_target_name}")
   endfunction(leveldb_test)
-
-  leveldb_test("db/c_test.c")
 
   if(NOT BUILD_SHARED_LIBS)
     # TODO(costan): This test also uses
