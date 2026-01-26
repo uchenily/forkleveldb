@@ -178,7 +178,6 @@ target_sources(leveldb
     "util/hash.h"
     "util/logging.cc"
     "util/logging.h"
-    "util/mutexlock.h"
     "util/no_destructor.h"
     "util/options.cc"
     "util/random.h"
