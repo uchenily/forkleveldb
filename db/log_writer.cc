@@ -31,6 +31,17 @@ Writer::Writer(WritableFile* dest, uint64_t dest_length)
 
 Writer::~Writer() = default;
 
+/// 将一个逻辑记录(Slice)切分成N个物理片段(PhysicalRecord)
+/// 每个片段都带有 header（长度、类型、CRC）并且 block 尾部不留“碎片”空间.
+/// 高层目标:
+///   - 日志文件按固定大小 block（kBlockSize=32768）写入。
+///   - 每条记录可能跨 block，所以要拆分成 kFullType / kFirstType / kMiddleType / kLastType。
+///   - 每个物理片段都有 kHeaderSize（7字节）头部。
+///   - 若 block 尾部剩余空间不足放下一个 header，就用 0 填满，开始新 block。
+/// 为什么要这么设计?
+///   - Block 对齐：读取时按 block 读，header 在 block 内不跨界，简化 parser。
+///   - 可恢复性：每片有 CRC，可以检测局部损坏，读取时跳过坏片段。
+///   - 流式追加：block_offset_ 保存当前位置，支持文件尾追加。
 Status Writer::AddRecord(const Slice& slice) {
   const char* ptr = slice.data();
   size_t left = slice.size();
@@ -39,11 +50,13 @@ Status Writer::AddRecord(const Slice& slice) {
   // is empty, we still want to iterate once to emit a single
   // zero-length record
   Status s;
-  bool begin = true;
+  bool begin = true; // 第一个片段
+  // 循环切片
   do {
     const int leftover = kBlockSize - block_offset_;
     assert(leftover >= 0);
     if (leftover < kHeaderSize) {
+      // 剩余空间连header都放不下, 就把剩余的空间全部填0
       // Switch to a new block
       if (leftover > 0) {
         // Fill the trailer (literal below relies on kHeaderSize being 7)
@@ -56,7 +69,9 @@ Status Writer::AddRecord(const Slice& slice) {
     // Invariant: we never leave < kHeaderSize bytes in a block.
     assert(kBlockSize - block_offset_ - kHeaderSize >= 0);
 
+    // 当前block, 除去header后的数据空间
     const size_t avail = kBlockSize - block_offset_ - kHeaderSize;
+    // 本片段写入的数据长度
     const size_t fragment_length = (left < avail) ? left : avail;
 
     RecordType type;
@@ -71,11 +86,12 @@ Status Writer::AddRecord(const Slice& slice) {
       type = kMiddleType;
     }
 
+    //  写 header + payload，并 flush
     s = EmitPhysicalRecord(type, ptr, fragment_length);
     ptr += fragment_length;
     left -= fragment_length;
     begin = false;
-  } while (s.ok() && left > 0);
+  } while (s.ok() && left > 0); // 循环直到写完或者出错
   return s;
 }
 
